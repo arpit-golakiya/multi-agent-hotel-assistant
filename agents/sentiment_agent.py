@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from textblob import TextBlob
+from textblob.exceptions import MissingCorpusError
 from textblob.sentiments import NaiveBayesAnalyzer, PatternAnalyzer
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -14,8 +15,14 @@ from utils.prompts import SENTIMENT_AGENT_PROMPT
 def get_sentiment(query: str) -> str:
     """Get the sentiment of a query."""
     sentiment_1 = TextBlob(query, analyzer=PatternAnalyzer()).sentiment.polarity
-    sentiment_2 = TextBlob(query, analyzer=NaiveBayesAnalyzer()).sentiment.p_neg
-    if (sentiment_1 < -0.3) or (sentiment_2 > 0.6):
+    sentiment_2 = None
+    try:
+        # NaiveBayesAnalyzer requires TextBlob corpora (often missing on Streamlit Cloud).
+        sentiment_2 = TextBlob(query, analyzer=NaiveBayesAnalyzer()).sentiment.p_neg
+    except MissingCorpusError:
+        sentiment_2 = None
+
+    if (sentiment_1 < -0.3) or ((sentiment_2 is not None) and (sentiment_2 > 0.6)):
         return "Negative"
     return "Positive"
 
